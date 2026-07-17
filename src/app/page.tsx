@@ -100,7 +100,7 @@ function validateAuthForm(
   }
 
   if (!emailRegex.test(trimmedEmail)) {
-    return "Informe um e-mail valido.";
+    return "Informe um e-mail válido.";
   }
 
   if (!values.password) {
@@ -112,7 +112,7 @@ function validateAuthForm(
   }
 
   if (/\s/.test(values.password)) {
-    return "A senha nao pode ter espacos.";
+    return "A senha nao pode ter espaços.";
   }
 
   return "";
@@ -136,13 +136,13 @@ async function requestApi<T>(
     });
   } catch {
     throw new Error(
-      "Nao foi possivel conectar ao servidor. Verifique se o backend esta rodando e se a URL da API esta correta."
+      "Nao foi possível conectar ao servidor. Verifique se o backend esta rodando e se a URL da API esta correta."
     );
   }
 
   if (!response.ok) {
     const error = await response.json().catch(() => null);
-    throw new Error(error?.message ?? "Nao foi possivel concluir a operacao.");
+    throw new Error(error?.message ?? "Nao foi possível concluir a operaçao.");
   }
 
   if (response.status === 204) {
@@ -355,18 +355,18 @@ export default function Home() {
     try {
       await audio.play();
     } catch {
-      setMessage("Tempo concluido. O navegador bloqueou o som automaticamente.");
+      setMessage("Tempo concluído. O navegador bloqueou o som automaticamente.");
     }
   }
 
   async function saveSession(duration: number, sessionStartedAt?: Date) {
     if (!token) {
-      setError("Faca login para salvar seu estudo.");
+      setError("Faça login para salvar seu estudo.");
       return;
     }
 
     if (!title.trim()) {
-      setError("Informe um titulo para o estudo.");
+      setError("Informe um título para o estudo.");
       return;
     }
 
@@ -396,7 +396,7 @@ export default function Home() {
 
       await loadSessions(token);
       setNotes("");
-      setMessage("Estudo registrado no historico.");
+      setMessage("Estudo registrado no histórico.");
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
@@ -446,7 +446,7 @@ export default function Home() {
             <span className="brand-mark">TE</span>
             <div>
               <h1>Timer Estudo</h1>
-              <p>Entre, foque em uma sessao e acompanhe seu tempo real de estudo.</p>
+              <p>Site para ajudar a registrar as horas do seu foco de estudos diários. Aproveite Fabi</p>
             </div>
           </div>
 
@@ -485,7 +485,7 @@ export default function Home() {
               <input
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="voce@email.com"
+                placeholder="Seuemail@email.com"
                 required
                 type="email"
               />
@@ -497,7 +497,7 @@ export default function Home() {
                 value={password}
                 minLength={6}
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder="Minimo 6 caracteres"
+                placeholder="Mínimo 6 caracteres"
                 required
                 type="password"
               />
