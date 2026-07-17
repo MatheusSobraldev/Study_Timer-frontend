@@ -7,6 +7,7 @@ import "./page.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333/api";
 const completionSoundPath = "/audio/completion.mp3";
+
 type AuthMode = "login" | "register";
 type TimerStatus = "idle" | "running" | "paused";
 
@@ -99,7 +100,7 @@ function validateAuthForm(
   }
 
   if (!emailRegex.test(trimmedEmail)) {
-    return "Informe um e-mail válido.";
+    return "Informe um e-mail valido.";
   }
 
   if (!values.password) {
@@ -111,7 +112,7 @@ function validateAuthForm(
   }
 
   if (/\s/.test(values.password)) {
-    return "A senha não pode ter espaços.";
+    return "A senha nao pode ter espacos.";
   }
 
   return "";
@@ -122,18 +123,26 @@ async function requestApi<T>(
   options: RequestInit = {},
   token?: string
 ) {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers
-    }
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers
+      }
+    });
+  } catch {
+    throw new Error(
+      "Nao foi possivel conectar ao servidor. Verifique se o backend esta rodando e se a URL da API esta correta."
+    );
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => null);
-    throw new Error(error?.message ?? "Não foi possível concluir a operação.");
+    throw new Error(error?.message ?? "Nao foi possivel concluir a operacao.");
   }
 
   if (response.status === 204) {
@@ -157,7 +166,7 @@ export default function Home() {
     totalSessions: 0,
     totalMinutes: 0
   });
-  const [title, setTitle] = useState("Sessão de foco");
+  const [title, setTitle] = useState("Sessao de foco");
   const [subject, setSubject] = useState("");
   const [notes, setNotes] = useState("");
   const [timerMinutes, setTimerMinutes] = useState(25);
@@ -283,13 +292,13 @@ export default function Home() {
       setToken(data.token);
       setUser(data.user);
       setPassword("");
-      setMessage("Sessão iniciada com sucesso.");
+      setMessage("Sessao iniciada com sucesso.");
       await loadSessions(data.token);
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Erro ao autenticar usuário."
+          : "Erro ao autenticar usuario."
       );
     } finally {
       setIsLoading(false);
@@ -346,18 +355,18 @@ export default function Home() {
     try {
       await audio.play();
     } catch {
-      setMessage("Tempo concluído. O navegador bloqueou o som automaticamente.");
+      setMessage("Tempo concluido. O navegador bloqueou o som automaticamente.");
     }
   }
 
   async function saveSession(duration: number, sessionStartedAt?: Date) {
     if (!token) {
-      setError("Faça login para salvar seu estudo.");
+      setError("Faca login para salvar seu estudo.");
       return;
     }
 
     if (!title.trim()) {
-      setError("Informe um título para o estudo.");
+      setError("Informe um titulo para o estudo.");
       return;
     }
 
@@ -387,7 +396,7 @@ export default function Home() {
 
       await loadSessions(token);
       setNotes("");
-      setMessage("Estudo registrado no histórico.");
+      setMessage("Estudo registrado no historico.");
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
@@ -437,7 +446,7 @@ export default function Home() {
             <span className="brand-mark">TE</span>
             <div>
               <h1>Timer Estudo</h1>
-              <p>Entre, foque em uma sessão e acompanhe seu tempo real de estudo.</p>
+              <p>Entre, foque em uma sessao e acompanhe seu tempo real de estudo.</p>
             </div>
           </div>
 
@@ -515,7 +524,7 @@ export default function Home() {
       <header className="topbar">
         <div>
           <span className="eyebrow">Timer Estudo</span>
-          <h1>Boa sessão, {user.name}</h1>
+          <h1>Boa sessao, {user.name}</h1>
         </div>
         <button className="ghost-button" onClick={logout} type="button">
           Sair
@@ -542,7 +551,7 @@ export default function Home() {
           <div className="timer-header">
             <div>
               <span className="eyebrow">Foco ativo</span>
-              <h2>Sessão principal</h2>
+              <h2>Sessao principal</h2>
             </div>
             <div className={`status-pill ${timerStatus}`}>
               {getTimerStatusLabel(timerStatus)}
@@ -576,7 +585,7 @@ export default function Home() {
               />
             </label>
             <label>
-              Título
+              Titulo
               <input
                 onChange={(event) => setTitle(event.target.value)}
                 value={title}
@@ -591,7 +600,7 @@ export default function Home() {
               />
             </label>
             <label className="wide-field">
-              Observações
+              Observacoes
               <textarea
                 onChange={(event) => setNotes(event.target.value)}
                 placeholder="Opcional"
@@ -637,7 +646,7 @@ export default function Home() {
         <aside className="history-panel">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">Histórico</span>
+              <span className="eyebrow">Historico</span>
               <h2>Registros de estudo</h2>
             </div>
           </div>
