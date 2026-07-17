@@ -488,7 +488,7 @@ export default function Home() {
             <span className="brand-mark">TE</span>
             <div>
               <h1>Timer Estudo</h1>
-              <p>Site para ajudar a registrar as horas do seu foco de estudos diários. Aproveite Fabi</p>
+              <p>Site para ajudar a registrar as horas do seu foco de estudos diários. Aproveite, meu amor!!</p>
             </div>
           </div>
 
