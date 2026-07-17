@@ -95,11 +95,11 @@ function validateAuthForm(
   }
 
   if (!trimmedEmail) {
-    return "Informe seu email.";
+    return "Informe seu e-mail.";
   }
 
   if (!emailRegex.test(trimmedEmail)) {
-    return "Informe um email valido.";
+    return "Informe um e-mail válido.";
   }
 
   if (!values.password) {
@@ -111,7 +111,7 @@ function validateAuthForm(
   }
 
   if (/\s/.test(values.password)) {
-    return "A senha nao pode ter espacos.";
+    return "A senha não pode ter espaços.";
   }
 
   return "";
@@ -133,7 +133,7 @@ async function requestApi<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => null);
-    throw new Error(error?.message ?? "Nao foi possivel concluir a operacao.");
+    throw new Error(error?.message ?? "Não foi possível concluir a operação.");
   }
 
   if (response.status === 204) {
@@ -157,7 +157,7 @@ export default function Home() {
     totalSessions: 0,
     totalMinutes: 0
   });
-  const [title, setTitle] = useState("Sessao de foco");
+  const [title, setTitle] = useState("Sessão de foco");
   const [subject, setSubject] = useState("");
   const [notes, setNotes] = useState("");
   const [timerMinutes, setTimerMinutes] = useState(25);
@@ -283,13 +283,13 @@ export default function Home() {
       setToken(data.token);
       setUser(data.user);
       setPassword("");
-      setMessage("Sessao iniciada com sucesso.");
+      setMessage("Sessão iniciada com sucesso.");
       await loadSessions(data.token);
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Erro ao autenticar usuario."
+          : "Erro ao autenticar usuário."
       );
     } finally {
       setIsLoading(false);
@@ -346,18 +346,18 @@ export default function Home() {
     try {
       await audio.play();
     } catch {
-      setMessage("Tempo concluido. O navegador bloqueou o som automaticamente.");
+      setMessage("Tempo concluído. O navegador bloqueou o som automaticamente.");
     }
   }
 
   async function saveSession(duration: number, sessionStartedAt?: Date) {
     if (!token) {
-      setError("Faca login para salvar seu estudo.");
+      setError("Faça login para salvar seu estudo.");
       return;
     }
 
     if (!title.trim()) {
-      setError("Informe um titulo para o estudo.");
+      setError("Informe um título para o estudo.");
       return;
     }
 
@@ -387,7 +387,7 @@ export default function Home() {
 
       await loadSessions(token);
       setNotes("");
-      setMessage("Estudo registrado no historico.");
+      setMessage("Estudo registrado no histórico.");
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
@@ -437,7 +437,7 @@ export default function Home() {
             <span className="brand-mark">TE</span>
             <div>
               <h1>Timer Estudo</h1>
-              <p>Entre, foque em uma sessao e acompanhe seu tempo real de estudo.</p>
+              <p>Entre, foque em uma sessão e acompanhe seu tempo real de estudo.</p>
             </div>
           </div>
 
@@ -472,7 +472,7 @@ export default function Home() {
             )}
 
             <label>
-              Email
+              E-mail
               <input
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
@@ -515,7 +515,7 @@ export default function Home() {
       <header className="topbar">
         <div>
           <span className="eyebrow">Timer Estudo</span>
-          <h1>Boa sessao, {user.name}</h1>
+          <h1>Boa sessão, {user.name}</h1>
         </div>
         <button className="ghost-button" onClick={logout} type="button">
           Sair
@@ -542,7 +542,7 @@ export default function Home() {
           <div className="timer-header">
             <div>
               <span className="eyebrow">Foco ativo</span>
-              <h2>Sessao principal</h2>
+              <h2>Sessão principal</h2>
             </div>
             <div className={`status-pill ${timerStatus}`}>
               {getTimerStatusLabel(timerStatus)}
@@ -576,7 +576,7 @@ export default function Home() {
               />
             </label>
             <label>
-              Titulo
+              Título
               <input
                 onChange={(event) => setTitle(event.target.value)}
                 value={title}
@@ -591,7 +591,7 @@ export default function Home() {
               />
             </label>
             <label className="wide-field">
-              Observacoes
+              Observações
               <textarea
                 onChange={(event) => setNotes(event.target.value)}
                 placeholder="Opcional"
@@ -637,7 +637,7 @@ export default function Home() {
         <aside className="history-panel">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">Historico</span>
+              <span className="eyebrow">Histórico</span>
               <h2>Registros de estudo</h2>
             </div>
           </div>

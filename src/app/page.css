@@ -178,20 +178,24 @@ textarea:focus {
 
 .feedback {
   border-radius: 8px;
+  font-weight: 700;
+  line-height: 1.4;
   margin: 0;
-  padding: 10px 12px;
+  padding: 12px 14px;
 }
 
 .feedback.error {
-  background: rgba(255, 107, 122, 0.12);
-  border: 1px solid rgba(255, 107, 122, 0.28);
-  color: #ffc1c8;
+  background: #ffe3ea;
+  border: 1px solid #df4d68;
+  box-shadow: 0 10px 24px rgba(223, 77, 104, 0.14);
+  color: #8f1430;
 }
 
 .feedback.success {
-  background: rgba(255, 90, 185, 0.12);
-  border: 1px solid rgba(255, 90, 185, 0.3);
-  color: var(--primary-hover);
+  background: #f4d9eb;
+  border: 1px solid #c4378e;
+  box-shadow: 0 10px 24px rgba(196, 55, 142, 0.12);
+  color: #781052;
 }
 
 .dashboard {
