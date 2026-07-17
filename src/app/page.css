@@ -170,6 +170,16 @@ textarea:focus {
   transform: translateY(-1px);
 }
 
+.primary-button.positive-button {
+  background: linear-gradient(135deg, #22b86b, #72e7a4);
+  box-shadow: 0 0 24px rgba(34, 184, 107, 0.28);
+  color: #ffffff;
+}
+
+.primary-button.positive-button:hover {
+  box-shadow: 0 0 36px rgba(34, 184, 107, 0.38);
+}
+
 .secondary-button {
   background: rgba(255, 255, 255, 0.76);
   border-color: rgba(236, 63, 165, 0.28);
@@ -211,6 +221,68 @@ textarea:focus {
   min-height: 100vh;
   padding: 28px;
   position: relative;
+}
+
+.modal-backdrop {
+  align-items: center;
+  background: rgba(49, 19, 38, 0.42);
+  backdrop-filter: blur(8px);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 24px;
+  position: fixed;
+  z-index: 10;
+}
+
+.pause-modal {
+  background:
+    linear-gradient(145deg, rgba(255, 250, 253, 0.98), rgba(255, 229, 244, 0.94)),
+    var(--surface);
+  border: 1px solid rgba(236, 63, 165, 0.26);
+  border-radius: 8px;
+  box-shadow: 0 28px 90px rgba(118, 29, 82, 0.28);
+  display: grid;
+  gap: 18px;
+  max-width: 440px;
+  padding: 26px;
+  text-align: center;
+  width: min(100%, 440px);
+}
+
+.pause-modal h2 {
+  color: var(--text);
+  font-size: 26px;
+  margin: 6px 0 10px;
+}
+
+.pause-modal p {
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.alert-icon {
+  align-items: center;
+  background: #fff1c9;
+  border: 1px solid #f2b72f;
+  border-radius: 50%;
+  box-shadow: 0 0 26px rgba(242, 183, 47, 0.24);
+  color: #8a5a00;
+  display: inline-flex;
+  font-size: 28px;
+  font-weight: 900;
+  height: 64px;
+  justify-content: center;
+  justify-self: center;
+  width: 64px;
+}
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
 }
 
 .topbar {

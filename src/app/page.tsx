@@ -155,6 +155,7 @@ async function requestApi<T>(
 export default function Home() {
   const completionHandledRef = useRef(false);
   const completionAudioRef = useRef<HTMLAudioElement | null>(null);
+  const pauseAlertTimeoutRef = useRef<number | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -173,6 +174,7 @@ export default function Home() {
   const [secondsLeft, setSecondsLeft] = useState(25 * 60);
   const [startedAt, setStartedAt] = useState<Date | null>(null);
   const [timerStatus, setTimerStatus] = useState<TimerStatus>("idle");
+  const [showPauseAlert, setShowPauseAlert] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -256,6 +258,25 @@ export default function Home() {
     }
   }, [timerMinutes, timerStatus]);
 
+  useEffect(() => {
+    return () => clearPauseAlertTimeout();
+  }, []);
+
+  function clearPauseAlertTimeout() {
+    if (pauseAlertTimeoutRef.current !== null) {
+      window.clearTimeout(pauseAlertTimeoutRef.current);
+      pauseAlertTimeoutRef.current = null;
+    }
+  }
+
+  function schedulePauseAlert() {
+    clearPauseAlertTimeout();
+    pauseAlertTimeoutRef.current = window.setTimeout(() => {
+      setShowPauseAlert(true);
+      pauseAlertTimeoutRef.current = null;
+    }, 5 * 60 * 1000);
+  }
+
   async function handleAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -315,6 +336,8 @@ export default function Home() {
     setTimerStatus("idle");
     setStartedAt(null);
     completionHandledRef.current = false;
+    clearPauseAlertTimeout();
+    setShowPauseAlert(false);
     setMessage("");
     setError("");
   }
@@ -329,6 +352,8 @@ export default function Home() {
     }
 
     completionHandledRef.current = false;
+    clearPauseAlertTimeout();
+    setShowPauseAlert(false);
     setStartedAt(new Date());
     setSecondsLeft(timerMinutes * 60);
     setTimerStatus("running");
@@ -336,9 +361,13 @@ export default function Home() {
 
   function pauseTimer() {
     setTimerStatus("paused");
+    setShowPauseAlert(false);
+    schedulePauseAlert();
   }
 
   function resumeTimer() {
+    clearPauseAlertTimeout();
+    setShowPauseAlert(false);
     setTimerStatus("running");
   }
 
@@ -347,6 +376,13 @@ export default function Home() {
     setStartedAt(null);
     setSecondsLeft(timerMinutes * 60);
     completionHandledRef.current = false;
+    clearPauseAlertTimeout();
+    setShowPauseAlert(false);
+  }
+
+  function keepPaused() {
+    setShowPauseAlert(false);
+    clearPauseAlertTimeout();
   }
 
   async function playCompletionSound() {
@@ -512,7 +548,11 @@ export default function Home() {
             {error && <p className="feedback error">{error}</p>}
             {message && <p className="feedback success">{message}</p>}
 
-            <button className="primary-button" disabled={isLoading} type="submit">
+            <button
+              className={`primary-button ${message ? "positive-button" : ""}`}
+              disabled={isLoading}
+              type="submit"
+            >
               {isLoading
                 ? "Aguarde..."
                 : authMode === "register"
@@ -527,6 +567,31 @@ export default function Home() {
 
   return (
     <main className="dashboard">
+      {showPauseAlert && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <section className="pause-modal">
+            <div className="alert-icon" aria-hidden="true">
+              !
+            </div>
+            <div>
+              <span className="eyebrow">Pausa longa</span>
+              <h2>Hora de voltar aos estudos</h2>
+              <p>
+                Voce esta com o timer pausado ha mais de 5 minutos. Retome a
+                sessao para nao perder o ritmo.
+              </p>
+            </div>
+            <div className="modal-actions">
+              <button className="primary-button" onClick={resumeTimer} type="button">
+                Retomar
+              </button>
+              <button className="ghost-button" onClick={keepPaused} type="button">
+                Continuar pausado
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
       <header className="topbar">
         <div>
           <span className="eyebrow">Timer Estudo</span>
@@ -618,7 +683,11 @@ export default function Home() {
 
           <div className="action-row">
             {timerStatus === "idle" && (
-              <button className="primary-button" onClick={startTimer} type="button">
+              <button
+                className={`primary-button ${message ? "positive-button" : ""}`}
+                onClick={startTimer}
+                type="button"
+              >
                 Iniciar timer
               </button>
             )}
@@ -628,7 +697,11 @@ export default function Home() {
               </button>
             )}
             {timerStatus === "paused" && (
-              <button className="primary-button" onClick={resumeTimer} type="button">
+              <button
+                className={`primary-button ${message ? "positive-button" : ""}`}
+                onClick={resumeTimer}
+                type="button"
+              >
                 Continuar
               </button>
             )}
