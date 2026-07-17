@@ -36,9 +36,12 @@
 
 .brand-block {
   align-content: start;
-  align-items: flex-start;
+  align-items: center;
+  align-self: center;
   display: grid;
   gap: 20px;
+  justify-items: center;
+  text-align: center;
 }
 
 .brand-mark {
