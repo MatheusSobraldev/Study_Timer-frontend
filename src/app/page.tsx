@@ -136,13 +136,13 @@ async function requestApi<T>(
     });
   } catch {
     throw new Error(
-      "Nao foi possível conectar ao servidor. Verifique se o backend esta rodando e se a URL da API esta correta."
+      "Não foi possível conectar ao servidor. Verifique se o backend esta rodando e se a URL da API está correta."
     );
   }
 
   if (!response.ok) {
     const error = await response.json().catch(() => null);
-    throw new Error(error?.message ?? "Nao foi possível concluir a operaçao.");
+    throw new Error(error?.message ?? "Não foi possível concluir a operação.");
   }
 
   if (response.status === 204) {
@@ -166,7 +166,7 @@ export default function Home() {
     totalSessions: 0,
     totalMinutes: 0
   });
-  const [title, setTitle] = useState("Sessao de foco");
+  const [title, setTitle] = useState("Sessão de foco");
   const [subject, setSubject] = useState("");
   const [notes, setNotes] = useState("");
   const [timerMinutes, setTimerMinutes] = useState(25);
