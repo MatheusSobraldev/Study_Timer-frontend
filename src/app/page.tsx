@@ -730,6 +730,11 @@ export default function Home() {
                       {session.subject || "Sem matéria"} -{" "}
                       {formatMinutes(session.durationInMinutes)}
                     </p>
+                    {session.notes && (
+                      <p className="session-notes">
+                        <strong>Observação:</strong> {session.notes}
+                      </p>
+                    )}
                     <span>{formatDateTime(session.startedAt)}</span>
                   </div>
                   <button

@@ -536,6 +536,16 @@ textarea:focus {
   margin: 0 0 8px;
 }
 
+.session-card .session-notes {
+  color: var(--text);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.session-notes strong {
+  color: var(--primary);
+}
+
 .delete-button {
   background: rgba(255, 107, 122, 0.1);
   border-color: rgba(255, 107, 122, 0.32);
