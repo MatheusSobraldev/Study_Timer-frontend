@@ -73,6 +73,20 @@ function formatMinutes(totalMinutes: number) {
   return `${hours}h ${minutes.toString().padStart(2, "0")}min`;
 }
 
+function getLocalDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const day = date.getDate().toString().padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function moveDate(date: Date, amount: number) {
+  const movedDate = new Date(date);
+  movedDate.setDate(movedDate.getDate() + amount);
+  return movedDate;
+}
+
 function getTimerStatusLabel(status: TimerStatus) {
   const labels: Record<TimerStatus, string> = {
     idle: "Pronto",
@@ -175,6 +189,7 @@ export default function Home() {
   const [startedAt, setStartedAt] = useState<Date | null>(null);
   const [timerStatus, setTimerStatus] = useState<TimerStatus>("idle");
   const [showPauseAlert, setShowPauseAlert] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -188,6 +203,53 @@ export default function Home() {
 
     return Math.round(((totalSeconds - secondsLeft) / totalSeconds) * 100);
   }, [secondsLeft, timerMinutes]);
+
+  const report = useMemo(() => {
+    const minutesByDay = new Map<string, number>();
+
+    sessions.forEach((session) => {
+      const dayKey = getLocalDateKey(new Date(session.startedAt));
+      const currentMinutes = minutesByDay.get(dayKey) ?? 0;
+      minutesByDay.set(dayKey, currentMinutes + session.durationInMinutes);
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const chartDays = Array.from({ length: 7 }, (_, index) => {
+      const date = moveDate(today, index - 6);
+      const key = getLocalDateKey(date);
+
+      return {
+        key,
+        label: new Intl.DateTimeFormat("pt-BR", { weekday: "short" })
+          .format(date)
+          .replace(".", ""),
+        dayNumber: date.getDate().toString().padStart(2, "0"),
+        minutes: minutesByDay.get(key) ?? 0
+      };
+    });
+
+    let streakCursor = today;
+
+    if (!minutesByDay.has(getLocalDateKey(streakCursor))) {
+      streakCursor = moveDate(streakCursor, -1);
+    }
+
+    let currentStreak = 0;
+
+    while (minutesByDay.has(getLocalDateKey(streakCursor))) {
+      currentStreak += 1;
+      streakCursor = moveDate(streakCursor, -1);
+    }
+
+    return {
+      accessedDays: minutesByDay.size,
+      chartDays,
+      currentStreak,
+      maxDailyMinutes: Math.max(...chartDays.map((day) => day.minutes), 1)
+    };
+  }, [sessions]);
 
   async function loadSessions(currentToken: string) {
     const data = await requestApi<SessionsResponse>(
@@ -261,6 +323,28 @@ export default function Home() {
   useEffect(() => {
     return () => clearPauseAlertTimeout();
   }, []);
+
+  useEffect(() => {
+    if (!showReport) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setShowReport(false);
+      }
+    }
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [showReport]);
 
   function clearPauseAlertTimeout() {
     if (pauseAlertTimeoutRef.current !== null) {
@@ -338,6 +422,7 @@ export default function Home() {
     completionHandledRef.current = false;
     clearPauseAlertTimeout();
     setShowPauseAlert(false);
+    setShowReport(false);
     setMessage("");
     setError("");
   }
@@ -588,14 +673,112 @@ export default function Home() {
           </section>
         </div>
       )}
+      {showReport && (
+        <div
+          className="modal-backdrop report-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowReport(false);
+            }
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="report-title"
+        >
+          <section className="report-modal">
+            <header className="report-header">
+              <div>
+                <span className="eyebrow">Relatório</span>
+                <h2 id="report-title">Resumo de atividade</h2>
+              </div>
+              <button
+                aria-label="Fechar relatório"
+                className="report-close"
+                onClick={() => setShowReport(false)}
+                type="button"
+              >
+                X
+              </button>
+            </header>
+
+            <div className="report-summary">
+              <article>
+                <span>Tempo focado</span>
+                <strong>{formatMinutes(summary.totalMinutes)}</strong>
+                <small>em todas as sessões</small>
+              </article>
+              <article>
+                <span>Dias acessados</span>
+                <strong>{report.accessedDays}</strong>
+                <small>com estudo registrado</small>
+              </article>
+              <article>
+                <span>Sequência atual</span>
+                <strong>
+                  {report.currentStreak} {report.currentStreak === 1 ? "dia" : "dias"}
+                </strong>
+                <small>estudando sem perder o ritmo</small>
+              </article>
+            </div>
+
+            <div className="report-chart-heading">
+              <div>
+                <span className="eyebrow">Horas de foco</span>
+                <h3>Últimos 7 dias</h3>
+              </div>
+              <span>{formatMinutes(report.chartDays.reduce((total, day) => total + day.minutes, 0))}</span>
+            </div>
+
+            <div className="report-chart-scroll">
+              <div
+                className="report-chart"
+                role="img"
+                aria-label="Gráfico de minutos estudados nos últimos sete dias"
+              >
+                {report.chartDays.map((day) => {
+                  const barHeight =
+                    day.minutes === 0
+                      ? 0
+                      : Math.max((day.minutes / report.maxDailyMinutes) * 100, 7);
+
+                  return (
+                    <div className="report-chart-day" key={day.key}>
+                      <span className="report-chart-value">
+                        {day.minutes > 0 ? formatMinutes(day.minutes) : "0 min"}
+                      </span>
+                      <div className="report-chart-track">
+                        <div
+                          className="report-chart-bar"
+                          style={{ height: `${barHeight}%` }}
+                        />
+                      </div>
+                      <strong>{day.label}</strong>
+                      <small>{day.dayNumber}</small>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
       <header className="topbar">
         <div>
           <span className="eyebrow">Timer Estudo</span>
           <h1>Boa sessão, {user.name}!</h1>
         </div>
-        <button className="ghost-button" onClick={logout} type="button">
-          Sair
-        </button>
+        <div className="topbar-actions">
+          <button
+            className="secondary-button"
+            onClick={() => setShowReport(true)}
+            type="button"
+          >
+            Relatório
+          </button>
+          <button className="ghost-button" onClick={logout} type="button">
+            Sair
+          </button>
+        </div>
       </header>
 
       <section className="summary-grid">
