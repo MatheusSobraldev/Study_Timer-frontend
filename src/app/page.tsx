@@ -43,8 +43,31 @@ interface AuthResponse {
   token: string;
 }
 
+interface UserSettings {
+  defaultTimerMinutes: number;
+  completionSoundEnabled: boolean;
+  completionSoundVolume: number;
+  pauseAlertMinutes: number;
+  dailyGoalMinutes: number;
+  autoStartTimer: boolean;
+  reduceAnimations: boolean;
+}
+
+interface SettingsResponse {
+  settings: UserSettings;
+}
+
 const tokenStorageKey = "timer-estudo-token";
 const userStorageKey = "timer-estudo-user";
+const defaultSettings: UserSettings = {
+  defaultTimerMinutes: 25,
+  completionSoundEnabled: true,
+  completionSoundVolume: 75,
+  pauseAlertMinutes: 5,
+  dailyGoalMinutes: 60,
+  autoStartTimer: false,
+  reduceAnimations: false
+};
 
 function formatClock(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60)
@@ -190,6 +213,12 @@ export default function Home() {
   const [timerStatus, setTimerStatus] = useState<TimerStatus>("idle");
   const [showPauseAlert, setShowPauseAlert] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState<UserSettings>(defaultSettings);
+  const [settingsDraft, setSettingsDraft] =
+    useState<UserSettings>(defaultSettings);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [settingsError, setSettingsError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -247,7 +276,8 @@ export default function Home() {
       accessedDays: minutesByDay.size,
       chartDays,
       currentStreak,
-      maxDailyMinutes: Math.max(...chartDays.map((day) => day.minutes), 1)
+      maxDailyMinutes: Math.max(...chartDays.map((day) => day.minutes), 1),
+      todayMinutes: minutesByDay.get(getLocalDateKey(today)) ?? 0
     };
   }, [sessions]);
 
@@ -262,11 +292,46 @@ export default function Home() {
     setSummary(data.summary);
   }
 
+  async function loadSettings(
+    currentToken: string,
+    startAutomatically = false
+  ) {
+    const data = await requestApi<SettingsResponse>(
+      "/settings",
+      {},
+      currentToken
+    );
+
+    setSettings(data.settings);
+    setSettingsDraft(data.settings);
+
+    if (timerStatus === "idle") {
+      setTimerMinutes(data.settings.defaultTimerMinutes);
+      setSecondsLeft(data.settings.defaultTimerMinutes * 60);
+
+      if (startAutomatically && data.settings.autoStartTimer) {
+        completionHandledRef.current = false;
+        setStartedAt(new Date());
+        setTimerStatus("running");
+      }
+    }
+  }
+
   useEffect(() => {
     completionAudioRef.current = new Audio(completionSoundPath);
     completionAudioRef.current.preload = "auto";
-    completionAudioRef.current.volume = 0.75;
+
+    return () => {
+      completionAudioRef.current?.pause();
+      completionAudioRef.current = null;
+    };
   }, []);
+
+  useEffect(() => {
+    if (completionAudioRef.current) {
+      completionAudioRef.current.volume = settings.completionSoundVolume / 100;
+    }
+  }, [settings.completionSoundVolume]);
 
   useEffect(() => {
     const storedToken = localStorage.getItem(tokenStorageKey);
@@ -278,6 +343,9 @@ export default function Home() {
 
     setToken(storedToken);
     setUser(JSON.parse(storedUser) as User);
+    void loadSettings(storedToken, true).catch(() => {
+      setError("Não foi possível carregar suas configurações.");
+    });
     loadSessions(storedToken).catch(() => {
       localStorage.removeItem(tokenStorageKey);
       localStorage.removeItem(userStorageKey);
@@ -325,7 +393,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!showReport) {
+    if (!showReport && !showSettings) {
       return;
     }
 
@@ -334,6 +402,7 @@ export default function Home() {
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setShowReport(false);
+        setShowSettings(false);
       }
     }
 
@@ -344,7 +413,7 @@ export default function Home() {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", closeOnEscape);
     };
-  }, [showReport]);
+  }, [showReport, showSettings]);
 
   function clearPauseAlertTimeout() {
     if (pauseAlertTimeoutRef.current !== null) {
@@ -358,7 +427,7 @@ export default function Home() {
     pauseAlertTimeoutRef.current = window.setTimeout(() => {
       setShowPauseAlert(true);
       pauseAlertTimeoutRef.current = null;
-    }, 5 * 60 * 1000);
+    }, settings.pauseAlertMinutes * 60 * 1000);
   }
 
   async function handleAuth(event: FormEvent<HTMLFormElement>) {
@@ -399,6 +468,11 @@ export default function Home() {
       setPassword("");
       setMessage("Sessao iniciada com sucesso.");
       await loadSessions(data.token);
+      try {
+        await loadSettings(data.token, true);
+      } catch {
+        setError("Login realizado, mas não foi possível carregar suas configurações.");
+      }
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
@@ -423,6 +497,12 @@ export default function Home() {
     clearPauseAlertTimeout();
     setShowPauseAlert(false);
     setShowReport(false);
+    setShowSettings(false);
+    setSettings(defaultSettings);
+    setSettingsDraft(defaultSettings);
+    setSettingsError("");
+    setTimerMinutes(defaultSettings.defaultTimerMinutes);
+    setSecondsLeft(defaultSettings.defaultTimerMinutes * 60);
     setMessage("");
     setError("");
   }
@@ -470,10 +550,68 @@ export default function Home() {
     clearPauseAlertTimeout();
   }
 
+  function openSettings() {
+    setSettingsDraft(settings);
+    setSettingsError("");
+    setShowSettings(true);
+  }
+
+  async function saveSettings() {
+    if (!token) {
+      return;
+    }
+
+    const numericSettings = [
+      settingsDraft.defaultTimerMinutes,
+      settingsDraft.completionSoundVolume,
+      settingsDraft.pauseAlertMinutes,
+      settingsDraft.dailyGoalMinutes
+    ];
+
+    if (numericSettings.some((value) => !Number.isInteger(value))) {
+      setSettingsError("Preencha os valores numéricos com números inteiros.");
+      return;
+    }
+
+    setIsSavingSettings(true);
+    setSettingsError("");
+
+    try {
+      const data = await requestApi<SettingsResponse>(
+        "/settings",
+        {
+          method: "PUT",
+          body: JSON.stringify(settingsDraft)
+        },
+        token
+      );
+
+      setSettings(data.settings);
+      setSettingsDraft(data.settings);
+
+      if (timerStatus === "idle") {
+        setTimerMinutes(data.settings.defaultTimerMinutes);
+        setSecondsLeft(data.settings.defaultTimerMinutes * 60);
+      }
+
+      setShowSettings(false);
+      setMessage("Configurações salvas.");
+      setError("");
+    } catch (caughtError) {
+      setSettingsError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Não foi possível salvar as configurações."
+      );
+    } finally {
+      setIsSavingSettings(false);
+    }
+  }
+
   async function playCompletionSound() {
     const audio = completionAudioRef.current;
 
-    if (!audio) {
+    if (!audio || !settings.completionSoundEnabled) {
       return;
     }
 
@@ -647,7 +785,9 @@ export default function Home() {
   }
 
   return (
-    <main className="dashboard">
+    <main
+      className={`dashboard ${settings.reduceAnimations ? "reduce-animations" : ""}`}
+    >
       {showPauseAlert && (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
           <section className="pause-modal">
@@ -658,8 +798,8 @@ export default function Home() {
               <span className="eyebrow">Pausa longa</span>
               <h2>Hora de voltar aos estudos</h2>
               <p>
-                Voce esta com o timer pausado ha mais de 5 minutos. Retome a
-                sessao para nao perder o ritmo.
+                Você está com o timer pausado há mais de {settings.pauseAlertMinutes}{" "}
+                minutos. Retome a sessão para não perder o ritmo.
               </p>
             </div>
             <div className="modal-actions">
@@ -721,6 +861,26 @@ export default function Home() {
               </article>
             </div>
 
+            <div className="daily-goal">
+              <div>
+                <span>Meta de hoje</span>
+                <strong>
+                  {formatMinutes(report.todayMinutes)} de{" "}
+                  {formatMinutes(settings.dailyGoalMinutes)}
+                </strong>
+              </div>
+              <div className="daily-goal-track">
+                <div
+                  style={{
+                    width: `${Math.min(
+                      (report.todayMinutes / settings.dailyGoalMinutes) * 100,
+                      100
+                    )}%`
+                  }}
+                />
+              </div>
+            </div>
+
             <div className="report-chart-heading">
               <div>
                 <span className="eyebrow">Horas de foco</span>
@@ -762,6 +922,202 @@ export default function Home() {
           </section>
         </div>
       )}
+      {showSettings && (
+        <div
+          className="modal-backdrop settings-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowSettings(false);
+            }
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-title"
+        >
+          <section className="settings-modal">
+            <header className="report-header">
+              <div>
+                <span className="eyebrow">Preferências</span>
+                <h2 id="settings-title">Configurações</h2>
+              </div>
+              <button
+                aria-label="Fechar configurações"
+                className="report-close"
+                onClick={() => setShowSettings(false)}
+                type="button"
+              >
+                X
+              </button>
+            </header>
+
+            <div className="settings-content">
+              <section className="settings-section">
+                <div className="settings-section-heading">
+                  <h3>Timer e metas</h3>
+                  <p>Defina os tempos usados nas suas sessões.</p>
+                </div>
+                <div className="settings-grid">
+                  <label>
+                    Duração padrão
+                    <div className="number-setting">
+                      <input
+                        max={720}
+                        min={1}
+                        onChange={(event) =>
+                          setSettingsDraft((current) => ({
+                            ...current,
+                            defaultTimerMinutes: Number(event.target.value)
+                          }))
+                        }
+                        type="number"
+                        value={settingsDraft.defaultTimerMinutes}
+                      />
+                      <span>min</span>
+                    </div>
+                  </label>
+                  <label>
+                    Alerta de pausa
+                    <div className="number-setting">
+                      <input
+                        max={120}
+                        min={1}
+                        onChange={(event) =>
+                          setSettingsDraft((current) => ({
+                            ...current,
+                            pauseAlertMinutes: Number(event.target.value)
+                          }))
+                        }
+                        type="number"
+                        value={settingsDraft.pauseAlertMinutes}
+                      />
+                      <span>min</span>
+                    </div>
+                  </label>
+                  <label>
+                    Meta diária
+                    <div className="number-setting">
+                      <input
+                        max={1440}
+                        min={1}
+                        onChange={(event) =>
+                          setSettingsDraft((current) => ({
+                            ...current,
+                            dailyGoalMinutes: Number(event.target.value)
+                          }))
+                        }
+                        type="number"
+                        value={settingsDraft.dailyGoalMinutes}
+                      />
+                      <span>min</span>
+                    </div>
+                  </label>
+                </div>
+              </section>
+
+              <section className="settings-section">
+                <div className="settings-section-heading">
+                  <h3>Som de conclusão</h3>
+                  <p>Escolha como o aviso será reproduzido.</p>
+                </div>
+                <label className="toggle-setting">
+                  <span>
+                    <strong>Ativar som</strong>
+                    <small>Tocar a comemoração ao concluir o timer.</small>
+                  </span>
+                  <input
+                    checked={settingsDraft.completionSoundEnabled}
+                    onChange={(event) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        completionSoundEnabled: event.target.checked
+                      }))
+                    }
+                    type="checkbox"
+                  />
+                  <span className="toggle-control" aria-hidden="true" />
+                </label>
+                <label className="volume-setting">
+                  <span>
+                    Volume
+                    <strong>{settingsDraft.completionSoundVolume}%</strong>
+                  </span>
+                  <input
+                    disabled={!settingsDraft.completionSoundEnabled}
+                    max={100}
+                    min={0}
+                    onChange={(event) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        completionSoundVolume: Number(event.target.value)
+                      }))
+                    }
+                    type="range"
+                    value={settingsDraft.completionSoundVolume}
+                  />
+                </label>
+              </section>
+
+              <section className="settings-section settings-toggles">
+                <label className="toggle-setting">
+                  <span>
+                    <strong>Início automático</strong>
+                    <small>Iniciar o timer ao entrar no painel.</small>
+                  </span>
+                  <input
+                    checked={settingsDraft.autoStartTimer}
+                    onChange={(event) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        autoStartTimer: event.target.checked
+                      }))
+                    }
+                    type="checkbox"
+                  />
+                  <span className="toggle-control" aria-hidden="true" />
+                </label>
+                <label className="toggle-setting">
+                  <span>
+                    <strong>Reduzir animações</strong>
+                    <small>Desativar a pulsação do aro durante o foco.</small>
+                  </span>
+                  <input
+                    checked={settingsDraft.reduceAnimations}
+                    onChange={(event) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        reduceAnimations: event.target.checked
+                      }))
+                    }
+                    type="checkbox"
+                  />
+                  <span className="toggle-control" aria-hidden="true" />
+                </label>
+              </section>
+            </div>
+
+            {settingsError && <p className="feedback error">{settingsError}</p>}
+
+            <div className="settings-actions">
+              <button
+                className="ghost-button"
+                disabled={isSavingSettings}
+                onClick={() => setShowSettings(false)}
+                type="button"
+              >
+                Cancelar
+              </button>
+              <button
+                className="primary-button"
+                disabled={isSavingSettings}
+                onClick={saveSettings}
+                type="button"
+              >
+                {isSavingSettings ? "Salvando..." : "Salvar configurações"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
       <header className="topbar">
         <div>
           <span className="eyebrow">Timer Estudo</span>
@@ -774,6 +1130,9 @@ export default function Home() {
             type="button"
           >
             Relatório
+          </button>
+          <button className="secondary-button" onClick={openSettings} type="button">
+            Configurações
           </button>
           <button className="ghost-button" onClick={logout} type="button">
             Sair
