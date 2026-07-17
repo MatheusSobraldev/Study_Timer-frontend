@@ -187,7 +187,7 @@ textarea:focus {
   border-radius: 8px;
   font-weight: 700;
   line-height: 1.4;
-  margin: 0;
+  margin: 8px 0 0;
   padding: 12px 14px;
 }
 

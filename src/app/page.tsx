@@ -524,7 +524,7 @@ export default function Home() {
       <header className="topbar">
         <div>
           <span className="eyebrow">Timer Estudo</span>
-          <h1>Boa sessao, {user.name}</h1>
+          <h1>Boa sessão, {user.name}!</h1>
         </div>
         <button className="ghost-button" onClick={logout} type="button">
           Sair
@@ -533,7 +533,7 @@ export default function Home() {
 
       <section className="summary-grid">
         <article>
-          <span>Sessoes</span>
+          <span>Sessões</span>
           <strong>{summary.totalSessions}</strong>
         </article>
         <article>
@@ -551,7 +551,7 @@ export default function Home() {
           <div className="timer-header">
             <div>
               <span className="eyebrow">Foco ativo</span>
-              <h2>Sessao principal</h2>
+              <h2>Sessão principal</h2>
             </div>
             <div className={`status-pill ${timerStatus}`}>
               {getTimerStatusLabel(timerStatus)}
@@ -585,14 +585,14 @@ export default function Home() {
               />
             </label>
             <label>
-              Titulo
+              Título
               <input
                 onChange={(event) => setTitle(event.target.value)}
                 value={title}
               />
             </label>
             <label>
-              Materia
+              Matéria
               <input
                 onChange={(event) => setSubject(event.target.value)}
                 placeholder="Opcional"
@@ -600,7 +600,7 @@ export default function Home() {
               />
             </label>
             <label className="wide-field">
-              Observacoes
+              Observações
               <textarea
                 onChange={(event) => setNotes(event.target.value)}
                 placeholder="Opcional"
@@ -646,7 +646,7 @@ export default function Home() {
         <aside className="history-panel">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">Historico</span>
+              <span className="eyebrow">Histórico</span>
               <h2>Registros de estudo</h2>
             </div>
           </div>
@@ -660,7 +660,7 @@ export default function Home() {
                   <div>
                     <h3>{session.title}</h3>
                     <p>
-                      {session.subject || "Sem materia"} -{" "}
+                      {session.subject || "Sem matéria"} -{" "}
                       {formatMinutes(session.durationInMinutes)}
                     </p>
                     <span>{formatDateTime(session.startedAt)}</span>
