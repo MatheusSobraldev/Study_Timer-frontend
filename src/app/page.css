@@ -35,23 +35,25 @@
 }
 
 .brand-block {
+  align-content: start;
   align-items: flex-start;
-  display: flex;
-  gap: 18px;
+  display: grid;
+  gap: 20px;
 }
 
 .brand-mark {
   align-items: center;
-  background: rgba(255, 90, 185, 0.14);
-  border: 1px solid rgba(255, 155, 214, 0.52);
+  background: rgba(255, 90, 185, 0.16);
+  border: 1px solid rgba(255, 155, 214, 0.68);
   border-radius: 8px;
-  box-shadow: 0 0 30px rgba(255, 90, 185, 0.34);
+  box-shadow: 0 0 34px rgba(255, 90, 185, 0.32);
   color: var(--primary);
   display: inline-flex;
-  font-weight: 800;
-  height: 56px;
+  font-size: 28px;
+  font-weight: 900;
+  height: 94px;
   justify-content: center;
-  width: 56px;
+  width: 94px;
 }
 
 .brand-block h1,
@@ -145,6 +147,7 @@ textarea:focus {
   border-radius: 8px;
   min-height: 44px;
   padding: 10px 16px;
+  font-weight: 700;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease,
@@ -154,8 +157,8 @@ textarea:focus {
 .primary-button {
   background: linear-gradient(135deg, var(--primary), #ff9bd6);
   box-shadow: 0 0 24px rgba(255, 90, 185, 0.28);
-  color: #1d0718;
-  font-weight: 800;
+  color: #ffffff;
+  font-weight: 700;
 }
 
 .primary-button:hover {
@@ -164,9 +167,9 @@ textarea:focus {
 }
 
 .secondary-button {
-  background: rgba(255, 209, 102, 0.12);
-  border-color: rgba(255, 209, 102, 0.34);
-  color: #7a4d00;
+  background: rgba(255, 255, 255, 0.76);
+  border-color: rgba(236, 63, 165, 0.28);
+  color: var(--primary-hover);
   font-weight: 700;
 }
 
@@ -379,6 +382,7 @@ textarea:focus {
 .timer-core strong {
   color: var(--text);
   font-size: clamp(46px, 9vw, 86px);
+  font-weight: 900;
   line-height: 1;
   margin: 14px 0 10px;
   text-shadow:
@@ -507,8 +511,10 @@ textarea:focus {
     padding: 20px;
   }
 
-  .brand-block {
-    display: grid;
+  .brand-mark {
+    font-size: 22px;
+    height: 76px;
+    width: 76px;
   }
 
   .brand-block h1,
