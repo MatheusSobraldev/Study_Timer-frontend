@@ -6,10 +6,18 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import "./page.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333/api";
-const completionSoundPath = "/audio/completion.mp3";
 
 type AuthMode = "login" | "register";
 type TimerStatus = "idle" | "running" | "paused";
+type CompletionSound = "disco" | "mario" | "vitoria" | "congrats" | "voila";
+
+const completionSoundPaths: Record<CompletionSound, string> = {
+  disco: "/audio/completion.mp3",
+  mario: "/audio/mario.mp3",
+  vitoria: "/audio/vitoria.mp3",
+  congrats: "/audio/congrats.mp3",
+  voila: "/audio/voila.mp3"
+};
 
 interface User {
   id: string;
@@ -47,6 +55,7 @@ interface UserSettings {
   defaultTimerMinutes: number;
   completionSoundEnabled: boolean;
   completionSoundVolume: number;
+  completionSound: CompletionSound;
   pauseAlertMinutes: number;
   dailyGoalMinutes: number;
   autoStartTimer: boolean;
@@ -63,11 +72,24 @@ const defaultSettings: UserSettings = {
   defaultTimerMinutes: 25,
   completionSoundEnabled: true,
   completionSoundVolume: 75,
+  completionSound: "disco",
   pauseAlertMinutes: 5,
   dailyGoalMinutes: 60,
   autoStartTimer: false,
   reduceAnimations: false
 };
+
+function normalizeSettings(receivedSettings: Partial<UserSettings>): UserSettings {
+  const completionSound =
+    receivedSettings.completionSound ?? defaultSettings.completionSound;
+
+  return {
+    ...defaultSettings,
+    ...receivedSettings,
+    completionSound:
+      completionSound in completionSoundPaths ? completionSound : "disco"
+  };
+}
 
 function formatClock(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60)
@@ -192,6 +214,7 @@ async function requestApi<T>(
 export default function Home() {
   const completionHandledRef = useRef(false);
   const completionAudioRef = useRef<HTMLAudioElement | null>(null);
+  const settingsPreviewAudioRef = useRef<HTMLAudioElement | null>(null);
   const pauseAlertTimeoutRef = useRef<number | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [name, setName] = useState("");
@@ -302,14 +325,16 @@ export default function Home() {
       currentToken
     );
 
-    setSettings(data.settings);
-    setSettingsDraft(data.settings);
+    const loadedSettings = normalizeSettings(data.settings);
+
+    setSettings(loadedSettings);
+    setSettingsDraft(loadedSettings);
 
     if (timerStatus === "idle") {
-      setTimerMinutes(data.settings.defaultTimerMinutes);
-      setSecondsLeft(data.settings.defaultTimerMinutes * 60);
+      setTimerMinutes(loadedSettings.defaultTimerMinutes);
+      setSecondsLeft(loadedSettings.defaultTimerMinutes * 60);
 
-      if (startAutomatically && data.settings.autoStartTimer) {
+      if (startAutomatically && loadedSettings.autoStartTimer) {
         completionHandledRef.current = false;
         setStartedAt(new Date());
         setTimerStatus("running");
@@ -318,20 +343,41 @@ export default function Home() {
   }
 
   useEffect(() => {
-    completionAudioRef.current = new Audio(completionSoundPath);
-    completionAudioRef.current.preload = "auto";
+    const audio = new Audio(completionSoundPaths[settings.completionSound]);
+    audio.preload = "auto";
+    audio.volume = settings.completionSoundVolume / 100;
+    completionAudioRef.current = audio;
 
     return () => {
-      completionAudioRef.current?.pause();
-      completionAudioRef.current = null;
+      audio.pause();
+
+      if (completionAudioRef.current === audio) {
+        completionAudioRef.current = null;
+      }
     };
-  }, []);
+  }, [settings.completionSound]);
 
   useEffect(() => {
     if (completionAudioRef.current) {
       completionAudioRef.current.volume = settings.completionSoundVolume / 100;
     }
   }, [settings.completionSoundVolume]);
+
+  useEffect(() => {
+    if (settingsPreviewAudioRef.current) {
+      settingsPreviewAudioRef.current.volume =
+        settingsDraft.completionSoundVolume / 100;
+    }
+  }, [settingsDraft.completionSoundVolume]);
+
+  useEffect(() => {
+    if (showSettings) {
+      return;
+    }
+
+    settingsPreviewAudioRef.current?.pause();
+    settingsPreviewAudioRef.current = null;
+  }, [showSettings]);
 
   useEffect(() => {
     const storedToken = localStorage.getItem(tokenStorageKey);
@@ -556,6 +602,35 @@ export default function Home() {
     setShowSettings(true);
   }
 
+  async function previewCompletionSound() {
+    settingsPreviewAudioRef.current?.pause();
+
+    const audio = new Audio(completionSoundPaths[settingsDraft.completionSound]);
+    audio.volume = settingsDraft.completionSoundVolume / 100;
+    settingsPreviewAudioRef.current = audio;
+    setSettingsError("");
+
+    audio.addEventListener(
+      "ended",
+      () => {
+        if (settingsPreviewAudioRef.current === audio) {
+          settingsPreviewAudioRef.current = null;
+        }
+      },
+      { once: true }
+    );
+
+    try {
+      await audio.play();
+    } catch {
+      if (settingsPreviewAudioRef.current === audio) {
+        settingsPreviewAudioRef.current = null;
+      }
+
+      setSettingsError("O navegador bloqueou a prévia do som.");
+    }
+  }
+
   async function saveSettings() {
     if (!token) {
       return;
@@ -586,12 +661,14 @@ export default function Home() {
         token
       );
 
-      setSettings(data.settings);
-      setSettingsDraft(data.settings);
+      const savedSettings = normalizeSettings(data.settings);
+
+      setSettings(savedSettings);
+      setSettingsDraft(savedSettings);
 
       if (timerStatus === "idle") {
-        setTimerMinutes(data.settings.defaultTimerMinutes);
-        setSecondsLeft(data.settings.defaultTimerMinutes * 60);
+        setTimerMinutes(savedSettings.defaultTimerMinutes);
+        setSecondsLeft(savedSettings.defaultTimerMinutes * 60);
       }
 
       setShowSettings(false);
@@ -1026,16 +1103,52 @@ export default function Home() {
                   </span>
                   <input
                     checked={settingsDraft.completionSoundEnabled}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      if (!event.target.checked) {
+                        settingsPreviewAudioRef.current?.pause();
+                        settingsPreviewAudioRef.current = null;
+                      }
+
                       setSettingsDraft((current) => ({
                         ...current,
                         completionSoundEnabled: event.target.checked
-                      }))
-                    }
+                      }));
+                    }}
                     type="checkbox"
                   />
                   <span className="toggle-control" aria-hidden="true" />
                 </label>
+                <div className="sound-choice">
+                  <label>
+                    Toque
+                    <select
+                      disabled={!settingsDraft.completionSoundEnabled}
+                      onChange={(event) => {
+                        settingsPreviewAudioRef.current?.pause();
+                        settingsPreviewAudioRef.current = null;
+                        setSettingsDraft((current) => ({
+                          ...current,
+                          completionSound: event.target.value as CompletionSound
+                        }));
+                      }}
+                      value={settingsDraft.completionSound}
+                    >
+                      <option value="disco">Disco</option>
+                      <option value="mario">Mario</option>
+                      <option value="vitoria">Vitória</option>
+                      <option value="congrats">Congrats</option>
+                      <option value="voila">Voila</option>
+                    </select>
+                  </label>
+                  <button
+                    className="secondary-button sound-preview-button"
+                    disabled={!settingsDraft.completionSoundEnabled}
+                    onClick={() => void previewCompletionSound()}
+                    type="button"
+                  >
+                    Ouvir prévia
+                  </button>
+                </div>
                 <label className="volume-setting">
                   <span>
                     Volume

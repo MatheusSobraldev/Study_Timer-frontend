@@ -128,7 +128,8 @@ label {
 }
 
 input,
-textarea {
+textarea,
+select {
   background: rgba(255, 255, 255, 0.82);
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -148,7 +149,8 @@ textarea {
 }
 
 input:focus,
-textarea:focus {
+textarea:focus,
+select:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 4px rgba(255, 90, 185, 0.14);
   outline: 0;
@@ -593,6 +595,28 @@ textarea:focus {
 .toggle-setting + .toggle-setting,
 .volume-setting {
   margin-top: 14px;
+}
+
+.sound-choice {
+  align-items: end;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-top: 14px;
+}
+
+.sound-choice select {
+  cursor: pointer;
+}
+
+.sound-choice select:disabled,
+.sound-preview-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.sound-preview-button {
+  min-width: 132px;
 }
 
 .toggle-setting > span:first-child {
@@ -1094,6 +1118,14 @@ textarea:focus {
 
   .settings-grid {
     grid-template-columns: 1fr;
+  }
+
+  .sound-choice {
+    grid-template-columns: 1fr;
+  }
+
+  .sound-preview-button {
+    width: 100%;
   }
 
   .settings-actions button {
