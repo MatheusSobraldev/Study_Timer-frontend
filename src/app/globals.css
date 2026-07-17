@@ -1,0 +1,62 @@
+:root {
+  --background: #ffe7f4;
+  --surface: rgba(255, 244, 250, 0.78);
+  --surface-strong: rgba(255, 236, 247, 0.96);
+  --surface-soft: rgba(255, 90, 185, 0.12);
+  --text: #321326;
+  --muted: #7d506d;
+  --line: rgba(224, 91, 166, 0.22);
+  --primary: #ec3fa5;
+  --primary-hover: #b91f7e;
+  --accent: #ffd166;
+  --danger: #ff6b8a;
+  --shadow: 0 28px 80px rgba(118, 29, 82, 0.18);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 111, 197, 0.48), transparent 30%),
+    radial-gradient(circle at 80% 8%, rgba(255, 209, 102, 0.32), transparent 28%),
+    radial-gradient(circle at 62% 78%, rgba(255, 155, 214, 0.42), transparent 34%),
+    linear-gradient(115deg, rgba(255, 90, 185, 0.22), transparent 34%),
+    repeating-linear-gradient(
+      135deg,
+      rgba(236, 63, 165, 0.04) 0,
+      rgba(236, 63, 165, 0.04) 1px,
+      transparent 1px,
+      transparent 18px
+    ),
+    linear-gradient(180deg, #fff6fb 0%, #ffe1f1 48%, #ffd4eb 100%);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+a {
+  color: inherit;
+}
