@@ -548,11 +548,7 @@ export default function Home() {
             {error && <p className="feedback error">{error}</p>}
             {message && <p className="feedback success">{message}</p>}
 
-            <button
-              className={`primary-button ${message ? "positive-button" : ""}`}
-              disabled={isLoading}
-              type="submit"
-            >
+            <button className="primary-button" disabled={isLoading} type="submit">
               {isLoading
                 ? "Aguarde..."
                 : authMode === "register"
@@ -683,11 +679,7 @@ export default function Home() {
 
           <div className="action-row">
             {timerStatus === "idle" && (
-              <button
-                className={`primary-button ${message ? "positive-button" : ""}`}
-                onClick={startTimer}
-                type="button"
-              >
+              <button className="primary-button" onClick={startTimer} type="button">
                 Iniciar timer
               </button>
             )}
@@ -697,11 +689,7 @@ export default function Home() {
               </button>
             )}
             {timerStatus === "paused" && (
-              <button
-                className={`primary-button ${message ? "positive-button" : ""}`}
-                onClick={resumeTimer}
-                type="button"
-              >
+              <button className="primary-button" onClick={resumeTimer} type="button">
                 Continuar
               </button>
             )}

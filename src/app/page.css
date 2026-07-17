@@ -170,16 +170,6 @@ textarea:focus {
   transform: translateY(-1px);
 }
 
-.primary-button.positive-button {
-  background: linear-gradient(135deg, #22b86b, #72e7a4);
-  box-shadow: 0 0 24px rgba(34, 184, 107, 0.28);
-  color: #ffffff;
-}
-
-.primary-button.positive-button:hover {
-  box-shadow: 0 0 36px rgba(34, 184, 107, 0.38);
-}
-
 .secondary-button {
   background: rgba(255, 255, 255, 0.76);
   border-color: rgba(236, 63, 165, 0.28);
@@ -209,10 +199,10 @@ textarea:focus {
 }
 
 .feedback.success {
-  background: #f4d9eb;
-  border: 1px solid #c4378e;
-  box-shadow: 0 10px 24px rgba(196, 55, 142, 0.12);
-  color: #781052;
+  background: #dff8e9;
+  border: 1px solid #22b86b;
+  box-shadow: 0 10px 24px rgba(34, 184, 107, 0.14);
+  color: #12683d;
 }
 
 .dashboard {
