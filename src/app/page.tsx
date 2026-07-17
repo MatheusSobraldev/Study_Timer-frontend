@@ -322,6 +322,12 @@ export default function Home() {
   function startTimer() {
     setError("");
     setMessage("");
+
+    if (!title.trim()) {
+      setError("Informe um título para iniciar o timer e conseguir salvar seu processo.");
+      return;
+    }
+
     completionHandledRef.current = false;
     setStartedAt(new Date());
     setSecondsLeft(timerMinutes * 60);
