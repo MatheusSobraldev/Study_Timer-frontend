@@ -86,27 +86,34 @@
 }
 
 .mode-tabs {
+  align-items: center;
   background: rgba(236, 63, 165, 0.08);
   border: 1px solid var(--line);
   border-radius: 8px;
   display: grid;
   grid-template-columns: 1fr 1fr;
+  min-height: 48px;
   padding: 4px;
 }
 
 .mode-tabs button {
+  align-items: center;
   background: transparent;
   border: 0;
   border-radius: 6px;
   color: var(--muted);
-  min-height: 40px;
+  display: flex;
+  font-weight: 700;
+  height: 40px;
+  justify-content: center;
+  line-height: 1;
+  margin: 0;
+  padding: 0;
 }
 
 .mode-tabs button.active {
   background: rgba(255, 90, 185, 0.16);
   color: var(--primary);
-  font-weight: 700;
-  margin-top: 20px;
 }
 
 label {
@@ -199,10 +206,10 @@ textarea:focus {
 }
 
 .feedback.success {
-  background: #dff8e9;
-  border: 1px solid #22b86b;
-  box-shadow: 0 10px 24px rgba(34, 184, 107, 0.14);
-  color: #12683d;
+  background: #f4d9eb;
+  border: 1px solid #c4378e;
+  box-shadow: 0 10px 24px rgba(196, 55, 142, 0.12);
+  color: #781052;
 }
 
 .dashboard {
