@@ -31,6 +31,7 @@ interface StudySession {
   userId: string;
   title: string;
   subject?: string;
+  durationInSeconds: number;
   durationInMinutes: number;
   startedAt: string;
   finishedAt: string;
@@ -42,6 +43,7 @@ interface SessionsResponse {
   sessions: StudySession[];
   summary: {
     totalSessions: number;
+    totalSeconds: number;
     totalMinutes: number;
   };
 }
@@ -116,6 +118,31 @@ function formatMinutes(totalMinutes: number) {
   }
 
   return `${hours}h ${minutes.toString().padStart(2, "0")}min`;
+}
+
+function formatDuration(totalSeconds: number) {
+  const safeSeconds = Math.max(0, Math.round(totalSeconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const seconds = safeSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes.toString().padStart(2, "0")}min ${seconds
+      .toString()
+      .padStart(2, "0")}s`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes}min ${seconds.toString().padStart(2, "0")}s`;
+  }
+
+  return `${seconds}s`;
+}
+
+function getSessionDurationInSeconds(session: StudySession) {
+  return (
+    session.durationInSeconds ?? Math.round(session.durationInMinutes * 60)
+  );
 }
 
 function getLocalDateKey(date: Date) {
@@ -213,6 +240,7 @@ async function requestApi<T>(
 
 export default function Home() {
   const completionHandledRef = useRef(false);
+  const recordedSecondsRef = useRef(0);
   const completionAudioRef = useRef<HTMLAudioElement | null>(null);
   const settingsPreviewAudioRef = useRef<HTMLAudioElement | null>(null);
   const pauseAlertTimeoutRef = useRef<number | null>(null);
@@ -225,6 +253,7 @@ export default function Home() {
   const [sessions, setSessions] = useState<StudySession[]>([]);
   const [summary, setSummary] = useState<SessionsResponse["summary"]>({
     totalSessions: 0,
+    totalSeconds: 0,
     totalMinutes: 0
   });
   const [title, setTitle] = useState("Sessão de foco");
@@ -257,12 +286,15 @@ export default function Home() {
   }, [secondsLeft, timerMinutes]);
 
   const report = useMemo(() => {
-    const minutesByDay = new Map<string, number>();
+    const secondsByDay = new Map<string, number>();
 
     sessions.forEach((session) => {
       const dayKey = getLocalDateKey(new Date(session.startedAt));
-      const currentMinutes = minutesByDay.get(dayKey) ?? 0;
-      minutesByDay.set(dayKey, currentMinutes + session.durationInMinutes);
+      const currentSeconds = secondsByDay.get(dayKey) ?? 0;
+      secondsByDay.set(
+        dayKey,
+        currentSeconds + getSessionDurationInSeconds(session)
+      );
     });
 
     const today = new Date();
@@ -278,29 +310,29 @@ export default function Home() {
           .format(date)
           .replace(".", ""),
         dayNumber: date.getDate().toString().padStart(2, "0"),
-        minutes: minutesByDay.get(key) ?? 0
+        seconds: secondsByDay.get(key) ?? 0
       };
     });
 
     let streakCursor = today;
 
-    if (!minutesByDay.has(getLocalDateKey(streakCursor))) {
+    if (!secondsByDay.has(getLocalDateKey(streakCursor))) {
       streakCursor = moveDate(streakCursor, -1);
     }
 
     let currentStreak = 0;
 
-    while (minutesByDay.has(getLocalDateKey(streakCursor))) {
+    while (secondsByDay.has(getLocalDateKey(streakCursor))) {
       currentStreak += 1;
       streakCursor = moveDate(streakCursor, -1);
     }
 
     return {
-      accessedDays: minutesByDay.size,
+      accessedDays: secondsByDay.size,
       chartDays,
       currentStreak,
-      maxDailyMinutes: Math.max(...chartDays.map((day) => day.minutes), 1),
-      todayMinutes: minutesByDay.get(getLocalDateKey(today)) ?? 0
+      maxDailySeconds: Math.max(...chartDays.map((day) => day.seconds), 1),
+      todaySeconds: secondsByDay.get(getLocalDateKey(today)) ?? 0
     };
   }, [sessions]);
 
@@ -311,8 +343,19 @@ export default function Home() {
       currentToken
     );
 
-    setSessions(data.sessions);
-    setSummary(data.summary);
+    const normalizedSessions = data.sessions.map((session) => ({
+      ...session,
+      durationInSeconds: getSessionDurationInSeconds(session)
+    }));
+    const totalSeconds =
+      data.summary.totalSeconds ?? Math.round(data.summary.totalMinutes * 60);
+
+    setSessions(normalizedSessions);
+    setSummary({
+      ...data.summary,
+      totalSeconds,
+      totalMinutes: totalSeconds / 60
+    });
   }
 
   async function loadSettings(
@@ -336,6 +379,7 @@ export default function Home() {
 
       if (startAutomatically && loadedSettings.autoStartTimer) {
         completionHandledRef.current = false;
+        recordedSecondsRef.current = 0;
         setStartedAt(new Date());
         setTimerStatus("running");
       }
@@ -417,7 +461,24 @@ export default function Home() {
           completionHandledRef.current = true;
           setTimerStatus("idle");
           void playCompletionSound();
-          void saveSession(timerMinutes, startedAt ?? new Date());
+
+          const totalDurationInSeconds = timerMinutes * 60;
+          const unsavedSeconds =
+            totalDurationInSeconds - recordedSecondsRef.current;
+          const timerStartedAt =
+            startedAt ?? new Date(Date.now() - totalDurationInSeconds * 1000);
+          const segmentStartedAt = new Date(
+            timerStartedAt.getTime() + recordedSecondsRef.current * 1000
+          );
+
+          if (unsavedSeconds > 0) {
+            void saveSession(unsavedSeconds, segmentStartedAt).then((saved) => {
+              if (saved) {
+                recordedSecondsRef.current = totalDurationInSeconds;
+              }
+            });
+          }
+
           return 0;
         }
 
@@ -536,10 +597,11 @@ export default function Home() {
     setToken(null);
     setUser(null);
     setSessions([]);
-    setSummary({ totalSessions: 0, totalMinutes: 0 });
+    setSummary({ totalSessions: 0, totalSeconds: 0, totalMinutes: 0 });
     setTimerStatus("idle");
     setStartedAt(null);
     completionHandledRef.current = false;
+    recordedSecondsRef.current = 0;
     clearPauseAlertTimeout();
     setShowPauseAlert(false);
     setShowReport(false);
@@ -563,6 +625,7 @@ export default function Home() {
     }
 
     completionHandledRef.current = false;
+    recordedSecondsRef.current = 0;
     clearPauseAlertTimeout();
     setShowPauseAlert(false);
     setStartedAt(new Date());
@@ -587,6 +650,7 @@ export default function Home() {
     setStartedAt(null);
     setSecondsLeft(timerMinutes * 60);
     completionHandledRef.current = false;
+    recordedSecondsRef.current = 0;
     clearPauseAlertTimeout();
     setShowPauseAlert(false);
   }
@@ -701,15 +765,18 @@ export default function Home() {
     }
   }
 
-  async function saveSession(duration: number, sessionStartedAt?: Date) {
+  async function saveSession(
+    durationInSeconds: number,
+    sessionStartedAt?: Date
+  ): Promise<boolean> {
     if (!token) {
       setError("Faça login para salvar seu estudo.");
-      return;
+      return false;
     }
 
     if (!title.trim()) {
       setError("Informe um título para o estudo.");
-      return;
+      return false;
     }
 
     setIsLoading(true);
@@ -718,7 +785,7 @@ export default function Home() {
 
     try {
       const start = sessionStartedAt ?? new Date();
-      const finished = new Date(start.getTime() + duration * 60 * 1000);
+      const finished = new Date(start.getTime() + durationInSeconds * 1000);
 
       await requestApi<StudySession>(
         "/study-sessions",
@@ -727,7 +794,7 @@ export default function Home() {
           body: JSON.stringify({
             title,
             subject,
-            durationInMinutes: duration,
+            durationInSeconds,
             startedAt: start.toISOString(),
             finishedAt: finished.toISOString(),
             notes
@@ -738,15 +805,56 @@ export default function Home() {
 
       await loadSessions(token);
       setNotes("");
-      setMessage("Estudo registrado no histórico.");
+      setMessage(
+        `Estudo de ${formatDuration(durationInSeconds)} registrado no histórico.`
+      );
+      return true;
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
           ? caughtError.message
           : "Erro ao salvar registro."
       );
+      return false;
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function saveManualSession() {
+    if (timerStatus === "idle" || !startedAt) {
+      setError("Inicie o timer antes de salvar um registro manual.");
+      setMessage("");
+      return;
+    }
+
+    if (!title.trim()) {
+      setError("Informe um título para o estudo.");
+      setMessage("");
+      return;
+    }
+
+    const totalDurationInSeconds = timerMinutes * 60;
+    const elapsedSeconds = totalDurationInSeconds - secondsLeft;
+    const unsavedSeconds = elapsedSeconds - recordedSecondsRef.current;
+
+    if (unsavedSeconds <= 0) {
+      setError("Não há novo tempo estudado para salvar.");
+      setMessage("");
+      return;
+    }
+
+    if (timerStatus === "running") {
+      pauseTimer();
+    }
+
+    const segmentStartedAt = new Date(
+      startedAt.getTime() + recordedSecondsRef.current * 1000
+    );
+    const saved = await saveSession(unsavedSeconds, segmentStartedAt);
+
+    if (saved) {
+      recordedSecondsRef.current = elapsedSeconds;
     }
   }
 
@@ -921,7 +1029,7 @@ export default function Home() {
             <div className="report-summary">
               <article>
                 <span>Tempo focado</span>
-                <strong>{formatMinutes(summary.totalMinutes)}</strong>
+                <strong>{formatDuration(summary.totalSeconds)}</strong>
                 <small>em todas as sessões</small>
               </article>
               <article>
@@ -942,7 +1050,7 @@ export default function Home() {
               <div>
                 <span>Meta de hoje</span>
                 <strong>
-                  {formatMinutes(report.todayMinutes)} de{" "}
+                  {formatDuration(report.todaySeconds)} de{" "}
                   {formatMinutes(settings.dailyGoalMinutes)}
                 </strong>
               </div>
@@ -950,7 +1058,9 @@ export default function Home() {
                 <div
                   style={{
                     width: `${Math.min(
-                      (report.todayMinutes / settings.dailyGoalMinutes) * 100,
+                      (report.todaySeconds /
+                        (settings.dailyGoalMinutes * 60)) *
+                        100,
                       100
                     )}%`
                   }}
@@ -963,25 +1073,37 @@ export default function Home() {
                 <span className="eyebrow">Horas de foco</span>
                 <h3>Últimos 7 dias</h3>
               </div>
-              <span>{formatMinutes(report.chartDays.reduce((total, day) => total + day.minutes, 0))}</span>
+              <span>
+                {formatDuration(
+                  report.chartDays.reduce(
+                    (total, day) => total + day.seconds,
+                    0
+                  )
+                )}
+              </span>
             </div>
 
             <div className="report-chart-scroll">
               <div
                 className="report-chart"
                 role="img"
-                aria-label="Gráfico de minutos estudados nos últimos sete dias"
+                aria-label="Gráfico do tempo estudado nos últimos sete dias"
               >
                 {report.chartDays.map((day) => {
                   const barHeight =
-                    day.minutes === 0
+                    day.seconds === 0
                       ? 0
-                      : Math.max((day.minutes / report.maxDailyMinutes) * 100, 7);
+                      : Math.max(
+                          (day.seconds / report.maxDailySeconds) * 100,
+                          7
+                        );
 
                   return (
                     <div className="report-chart-day" key={day.key}>
                       <span className="report-chart-value">
-                        {day.minutes > 0 ? formatMinutes(day.minutes) : "0 min"}
+                        {day.seconds > 0
+                          ? formatDuration(day.seconds)
+                          : "0s"}
                       </span>
                       <div className="report-chart-track">
                         <div
@@ -1260,7 +1382,7 @@ export default function Home() {
         </article>
         <article>
           <span>Tempo total</span>
-          <strong>{formatMinutes(summary.totalMinutes)}</strong>
+          <strong>{formatDuration(summary.totalSeconds)}</strong>
         </article>
         <article>
           <span>Progresso atual</span>
@@ -1353,8 +1475,8 @@ export default function Home() {
             </button>
             <button
               className="secondary-button"
-              disabled={isLoading}
-              onClick={() => saveSession(timerMinutes)}
+              disabled={isLoading || timerStatus === "idle"}
+              onClick={() => void saveManualSession()}
               type="button"
             >
               Salvar manual
@@ -1383,7 +1505,7 @@ export default function Home() {
                     <h3>{session.title}</h3>
                     <p>
                       {session.subject || "Sem matéria"} -{" "}
-                      {formatMinutes(session.durationInMinutes)}
+                      {formatDuration(getSessionDurationInSeconds(session))}
                     </p>
                     {session.notes && (
                       <p className="session-notes">
