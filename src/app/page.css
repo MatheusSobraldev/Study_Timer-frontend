@@ -349,6 +349,55 @@ select:focus {
   color: var(--primary-hover);
 }
 
+.history-modal {
+  max-width: 760px;
+  width: min(100%, 760px);
+}
+
+.history-content {
+  display: grid;
+  gap: 24px;
+  margin-top: 22px;
+  max-height: min(680px, calc(100vh - 180px));
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+.history-day + .history-day {
+  border-top: 1px solid var(--line);
+  padding-top: 24px;
+}
+
+.history-day-heading {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.history-day-heading h3 {
+  font-size: 17px;
+  margin: 0 0 4px;
+  text-transform: capitalize;
+}
+
+.history-day-heading span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.history-day-heading > strong {
+  color: var(--primary-hover);
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.history-day-list {
+  display: grid;
+  gap: 10px;
+}
+
 .report-summary {
   display: grid;
   gap: 12px;
@@ -964,6 +1013,21 @@ select:focus {
   margin-bottom: 16px;
 }
 
+.history-panel-heading {
+  align-items: flex-start;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.history-open-button {
+  font-size: 12px;
+  line-height: 1.25;
+  min-height: 38px;
+  padding: 7px 10px;
+  width: 128px;
+}
+
 .section-heading h2 {
   font-size: 22px;
   margin-top: 4px;
@@ -1095,6 +1159,10 @@ select:focus {
     padding: 18px;
   }
 
+  .history-content {
+    max-height: calc(100vh - 150px);
+  }
+
   .report-header h2 {
     font-size: 22px;
   }
@@ -1130,6 +1198,14 @@ select:focus {
 
   .settings-actions button {
     flex: 1;
+  }
+
+  .history-panel-heading {
+    grid-template-columns: 1fr;
+  }
+
+  .history-open-button {
+    width: 100%;
   }
 
   .timer-header {

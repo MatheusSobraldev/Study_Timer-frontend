@@ -159,6 +159,32 @@ function moveDate(date: Date, amount: number) {
   return movedDate;
 }
 
+function getHistoryDateLabel(dayKey: string, currentDayKey: string) {
+  if (dayKey === currentDayKey) {
+    return "Hoje";
+  }
+
+  const [currentYear, currentMonth, currentDay] = currentDayKey
+    .split("-")
+    .map(Number);
+  const yesterdayKey = getLocalDateKey(
+    moveDate(new Date(currentYear, currentMonth - 1, currentDay), -1)
+  );
+
+  if (dayKey === yesterdayKey) {
+    return "Ontem";
+  }
+
+  const [year, month, day] = dayKey.split("-").map(Number);
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric"
+  }).format(new Date(year, month - 1, day));
+}
+
 function getTimerStatusLabel(status: TimerStatus) {
   const labels: Record<TimerStatus, string> = {
     idle: "Pronto",
@@ -265,7 +291,11 @@ export default function Home() {
   const [timerStatus, setTimerStatus] = useState<TimerStatus>("idle");
   const [showPauseAlert, setShowPauseAlert] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [currentDayKey, setCurrentDayKey] = useState(() =>
+    getLocalDateKey(new Date())
+  );
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [settingsDraft, setSettingsDraft] =
     useState<UserSettings>(defaultSettings);
@@ -335,6 +365,38 @@ export default function Home() {
       todaySeconds: secondsByDay.get(getLocalDateKey(today)) ?? 0
     };
   }, [sessions]);
+
+  const todaySessions = useMemo(
+    () =>
+      sessions.filter(
+        (session) =>
+          getLocalDateKey(new Date(session.startedAt)) === currentDayKey
+      ),
+    [currentDayKey, sessions]
+  );
+
+  const historyGroups = useMemo(() => {
+    const sessionsByDay = new Map<string, StudySession[]>();
+
+    sessions.forEach((session) => {
+      const dayKey = getLocalDateKey(new Date(session.startedAt));
+      const daySessions = sessionsByDay.get(dayKey) ?? [];
+      daySessions.push(session);
+      sessionsByDay.set(dayKey, daySessions);
+    });
+
+    return Array.from(sessionsByDay.entries())
+      .map(([dayKey, daySessions]) => ({
+        dayKey,
+        label: getHistoryDateLabel(dayKey, currentDayKey),
+        sessions: daySessions,
+        totalSeconds: daySessions.reduce(
+          (total, session) => total + getSessionDurationInSeconds(session),
+          0
+        )
+      }))
+      .sort((first, second) => second.dayKey.localeCompare(first.dayKey));
+  }, [currentDayKey, sessions]);
 
   async function loadSessions(currentToken: string) {
     const data = await requestApi<SessionsResponse>(
@@ -500,7 +562,31 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!showReport && !showSettings) {
+    let dayChangeTimeout: number | null = null;
+
+    function updateCurrentDay() {
+      const now = new Date();
+      setCurrentDayKey(getLocalDateKey(now));
+
+      const nextDay = new Date(now);
+      nextDay.setHours(24, 0, 1, 0);
+      dayChangeTimeout = window.setTimeout(
+        updateCurrentDay,
+        nextDay.getTime() - now.getTime()
+      );
+    }
+
+    updateCurrentDay();
+
+    return () => {
+      if (dayChangeTimeout !== null) {
+        window.clearTimeout(dayChangeTimeout);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showReport && !showHistory && !showSettings) {
       return;
     }
 
@@ -509,6 +595,7 @@ export default function Home() {
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setShowReport(false);
+        setShowHistory(false);
         setShowSettings(false);
       }
     }
@@ -520,7 +607,7 @@ export default function Home() {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", closeOnEscape);
     };
-  }, [showReport, showSettings]);
+  }, [showHistory, showReport, showSettings]);
 
   function clearPauseAlertTimeout() {
     if (pauseAlertTimeoutRef.current !== null) {
@@ -605,6 +692,7 @@ export default function Home() {
     clearPauseAlertTimeout();
     setShowPauseAlert(false);
     setShowReport(false);
+    setShowHistory(false);
     setShowSettings(false);
     setSettings(defaultSettings);
     setSettingsDraft(defaultSettings);
@@ -888,6 +976,34 @@ export default function Home() {
     }
   }
 
+  function renderSessionCard(session: StudySession) {
+    return (
+      <article className="session-card" key={session.id}>
+        <div>
+          <h3>{session.title}</h3>
+          <p>
+            {session.subject || "Sem matéria"} -{" "}
+            {formatDuration(getSessionDurationInSeconds(session))}
+          </p>
+          {session.notes && (
+            <p className="session-notes">
+              <strong>Observação:</strong> {session.notes}
+            </p>
+          )}
+          <span>{formatDateTime(session.startedAt)}</span>
+        </div>
+        <button
+          aria-label={`Remover ${session.title}`}
+          className="delete-button"
+          onClick={() => deleteSession(session.id)}
+          type="button"
+        >
+          X
+        </button>
+      </article>
+    );
+  }
+
   if (!user || !token) {
     return (
       <main className="auth-page">
@@ -1117,6 +1233,60 @@ export default function Home() {
                   );
                 })}
               </div>
+            </div>
+          </section>
+        </div>
+      )}
+      {showHistory && (
+        <div
+          className="modal-backdrop report-backdrop history-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowHistory(false);
+            }
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="history-title"
+        >
+          <section className="report-modal history-modal">
+            <header className="report-header">
+              <div>
+                <span className="eyebrow">Histórico</span>
+                <h2 id="history-title">Todos os registros</h2>
+              </div>
+              <button
+                aria-label="Fechar histórico"
+                className="report-close"
+                onClick={() => setShowHistory(false)}
+                type="button"
+              >
+                X
+              </button>
+            </header>
+
+            <div className="history-content">
+              {historyGroups.length === 0 ? (
+                <p className="empty-state">Nenhum estudo registrado ainda.</p>
+              ) : (
+                historyGroups.map((group) => (
+                  <section className="history-day" key={group.dayKey}>
+                    <div className="history-day-heading">
+                      <div>
+                        <h3>{group.label}</h3>
+                        <span>
+                          {group.sessions.length}{" "}
+                          {group.sessions.length === 1 ? "sessão" : "sessões"}
+                        </span>
+                      </div>
+                      <strong>{formatDuration(group.totalSeconds)}</strong>
+                    </div>
+                    <div className="history-day-list">
+                      {group.sessions.map(renderSessionCard)}
+                    </div>
+                  </section>
+                ))
+              )}
             </div>
           </section>
         </div>
@@ -1488,42 +1658,25 @@ export default function Home() {
         </div>
 
         <aside className="history-panel">
-          <div className="section-heading">
+          <div className="section-heading history-panel-heading">
             <div>
-              <span className="eyebrow">Histórico</span>
+              <span className="eyebrow">Hoje</span>
               <h2>Registros de estudo</h2>
             </div>
+            <button
+              className="ghost-button history-open-button"
+              onClick={() => setShowHistory(true)}
+              type="button"
+            >
+              Ver histórico completo
+            </button>
           </div>
 
           <div className="session-list">
-            {sessions.length === 0 ? (
-              <p className="empty-state">Nenhum estudo registrado ainda.</p>
+            {todaySessions.length === 0 ? (
+              <p className="empty-state">Nenhum estudo registrado hoje.</p>
             ) : (
-              sessions.map((session) => (
-                <article className="session-card" key={session.id}>
-                  <div>
-                    <h3>{session.title}</h3>
-                    <p>
-                      {session.subject || "Sem matéria"} -{" "}
-                      {formatDuration(getSessionDurationInSeconds(session))}
-                    </p>
-                    {session.notes && (
-                      <p className="session-notes">
-                        <strong>Observação:</strong> {session.notes}
-                      </p>
-                    )}
-                    <span>{formatDateTime(session.startedAt)}</span>
-                  </div>
-                  <button
-                    aria-label={`Remover ${session.title}`}
-                    className="delete-button"
-                    onClick={() => deleteSession(session.id)}
-                    type="button"
-                  >
-                    X
-                  </button>
-                </article>
-              ))
+              todaySessions.map(renderSessionCard)
             )}
           </div>
         </aside>
